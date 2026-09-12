@@ -1,0 +1,15 @@
+{
+  "_doc": "zerostack 节点网格 ICE 配置 —— 走公共免费第三方（用户指令），不自建中继。信令仍走自家 lain42.top /signal（那是消息中继非媒体中继，无带宽成本）。",
+  "primary": [
+    { "urls": "stun:stun.l.google.com:19302" },
+    { "urls": "turn:openrelay.metered.ca:80", "username": "openrelayproject", "credential": "openrelayproject" },
+    { "urls": "turn:openrelay.metered.ca:443", "username": "openrelayproject", "credential": "openrelayproject" },
+    { "urls": "turn:openrelay.metered.ca:443?transport=tcp", "username": "openrelayproject", "credential": "openrelayproject" }
+  ],
+  "backup": [
+    { "urls": "stun:stun1.l.google.com:19302" },
+    { "urls": "stun:stun.cloudflare.com:3478" }
+  ],
+  "notes": "Open Relay (Metered) 免费额度 20GB/月, STUN 不限量; 社区实测可靠性中等, 足够节点网格 MVP。实测存活 2026-09-12 (Google/CF STUN 双返回 mapped address)。",
+  "self_hosted": "已弃用: Lain42 coturn 已停用 (systemctl disable --now coturn), 配置留档 /etc/turnserver.conf"
+}
