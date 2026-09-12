@@ -1,0 +1,69 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: sccache
+
+jobs:
+  linux-musl:
+    strategy:
+      matrix:
+        target: [aarch64-unknown-linux-musl, x86_64-unknown-linux-musl]
+    runs-on: ubuntu-latest
+    container: ghcr.io/rust-cross/cargo-zigbuild:latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup target add ${{ matrix.target }}
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: build
+        run: cargo zigbuild --release --target ${{ matrix.target }}
+      - name: pack
+        run: |
+          BIN=target/${{ matrix.target }}/release/cache-node
+          sha256sum "$BIN" > "${BIN}.sha256"
+          tar czf cache-node-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release cache-node
+          sha256sum cache-node-${{ matrix.target }}.tar.gz >> cache-node-${{ matrix.target }}.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cache-node-${{ matrix.target }}
+          path: |
+            target/${{ matrix.target }}/release/cache-node
+            target/${{ matrix.target }}/release/cache-node.sha256
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - run: cargo build --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cache-node-windows
+          path: target/release/cache-node.exe
+
+  release:
+    needs: [linux-musl, windows]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { merge-multiple: true, path: dist }
+      - name: checksums
+        run: |
+          cd dist
+          sha256sum cache-node cache-node.exe > SHA256SUMS 2>/dev/null || true
+          sha256sum *.tar.gz >> SHA256SUMS 2>/dev/null || true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/cache-node*
+            dist/SHA256SUMS
