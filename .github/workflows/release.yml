@@ -27,16 +27,15 @@ jobs:
         run: cargo zigbuild --release --target ${{ matrix.target }}
       - name: pack
         run: |
-          BIN=target/${{ matrix.target }}/release/cache-node
-          sha256sum "$BIN" > "${BIN}.sha256"
-          tar czf cache-node-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release cache-node
-          sha256sum cache-node-${{ matrix.target }}.tar.gz >> cache-node-${{ matrix.target }}.tar.gz.sha256
+          mkdir -p out
+          cp target/${{ matrix.target }}/release/cache-node out/cache-node-${{ matrix.target }}
+          sha256sum out/cache-node-${{ matrix.target }} > out/cache-node-${{ matrix.target }}.binary.sha256
+          tar czf out/cache-node-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release cache-node
+          sha256sum out/cache-node-${{ matrix.target }}.tar.gz > out/cache-node-${{ matrix.target }}.tar.gz.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: cache-node-${{ matrix.target }}
-          path: |
-            target/${{ matrix.target }}/release/cache-node
-            target/${{ matrix.target }}/release/cache-node.sha256
+          path: out/*
 
   windows:
     runs-on: windows-latest
@@ -45,10 +44,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo build --release
+      - name: pack
+        shell: bash
+        run: |
+          mkdir -p out
+          cp target/release/cache-node.exe out/cache-node-x86_64-pc-windows-msvc.exe
       - uses: actions/upload-artifact@v4
         with:
           name: cache-node-windows
-          path: target/release/cache-node.exe
+          path: out/*
 
   release:
     needs: [linux-musl, windows]
@@ -58,12 +62,9 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { merge-multiple: true, path: dist }
       - name: checksums
-        run: |
-          cd dist
-          sha256sum cache-node cache-node.exe > SHA256SUMS 2>/dev/null || true
-          sha256sum *.tar.gz >> SHA256SUMS 2>/dev/null || true
+        run: cd dist && sha256sum cache-node-* > SHA256SUMS
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/cache-node*
+            dist/cache-node-*
             dist/SHA256SUMS

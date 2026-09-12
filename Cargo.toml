@@ -1,6 +1,6 @@
 [package]
 name = "cache-node"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 description = "zerostack 节点网格第一原子：内容寻址 (sha256) KV 缓存节点 —— P2P 网格的 HTTP 前身"
 license = "MIT OR Apache-2.0"
