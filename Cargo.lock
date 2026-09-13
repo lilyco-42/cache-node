@@ -53,6 +53,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "arbitrary"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
+dependencies = [
+ "derive_arbitrary",
+]
+
+[[package]]
 name = "arc-swap"
 version = "1.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -73,7 +82,7 @@ dependencies = [
  "nom",
  "num-traits",
  "rusticata-macros",
- "thiserror",
+ "thiserror 1.0.69",
  "time",
 ]
 
@@ -252,7 +261,7 @@ checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
 name = "cache-node"
-version = "0.2.0"
+version = "0.3.1"
 dependencies = [
  "axum",
  "bytes",
@@ -262,6 +271,7 @@ dependencies = [
  "tokio",
  "ureq",
  "webrtc",
+ "zip",
 ]
 
 [[package]]
@@ -349,6 +359,12 @@ checksum = "8498c871161e1742aaa9d52551b2d6ebdd4c3d45a3be423e3728f33b955be550"
 dependencies = [
  "cfg-if",
 ]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.8.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a31eee39dddec8330830986fcd7625edb5a24ec90ea038215273bbc3adb08ac6"
 
 [[package]]
 name = "crypto-bigint"
@@ -446,6 +462,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cd812cc2bc1d69d4764bd80df88b4317eaef9e773c75226407d9bc0876b211c"
 
 [[package]]
+name = "derive_arbitrary"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e567bd82dcff979e4b03460c307b3cdc9e96fde3d73bed1496d2bc75d9dd62a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -502,6 +529,12 @@ dependencies = [
  "subtle",
  "zeroize",
 ]
+
+[[package]]
+name = "equivalent"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "errno"
@@ -696,6 +729,12 @@ dependencies = [
  "rand_core",
  "subtle",
 ]
+
+[[package]]
+name = "hashbrown"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "hex"
@@ -906,6 +945,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "indexmap"
+version = "2.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
+dependencies = [
+ "equivalent",
+ "hashbrown",
+]
+
+[[package]]
 name = "inout"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -928,7 +977,7 @@ dependencies = [
  "rand",
  "rtcp",
  "rtp",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
  "waitgroup",
  "webrtc-srtp",
@@ -1415,7 +1464,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9689528bf3a9eb311fd938d05516dd546412f9ce4fffc8acfc1db27cc3dbf72"
 dependencies = [
  "bytes",
- "thiserror",
+ "thiserror 1.0.69",
  "webrtc-util",
 ]
 
@@ -1430,7 +1479,7 @@ dependencies = [
  "portable-atomic",
  "rand",
  "serde",
- "thiserror",
+ "thiserror 1.0.69",
  "webrtc-util",
 ]
 
@@ -1513,7 +1562,7 @@ checksum = "4cd277015eada44a0bb810a4b84d3bf6e810573fa62fb442f457edf6a1087a69"
 dependencies = [
  "rand",
  "substring",
- "thiserror",
+ "thiserror 1.0.69",
  "url",
 ]
 
@@ -1727,7 +1776,7 @@ dependencies = [
  "rand",
  "ring",
  "subtle",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
  "url",
  "webrtc-util",
@@ -1793,7 +1842,16 @@ version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
 dependencies = [
- "thiserror-impl",
+ "thiserror-impl 1.0.69",
+]
+
+[[package]]
+name = "thiserror"
+version = "2.0.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec86235f5fcc2a73650310756d2ac5b138a5780bbbdfae3eeccec992c435ba4f"
+dependencies = [
+ "thiserror-impl 2.0.20",
 ]
 
 [[package]]
@@ -1805,6 +1863,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "2.0.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc04cd3e1236dd4a98afca4569f2deb3f120e5422a4023be2cb683f8486292af"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.5",
 ]
 
 [[package]]
@@ -1951,7 +2020,7 @@ dependencies = [
  "rand",
  "ring",
  "stun",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
  "tokio-util",
  "webrtc-util",
@@ -2144,7 +2213,7 @@ dependencies = [
  "sha2",
  "smol_str",
  "stun",
- "thiserror",
+ "thiserror 1.0.69",
  "time",
  "tokio",
  "turn",
@@ -2169,7 +2238,7 @@ dependencies = [
  "bytes",
  "log",
  "portable-atomic",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
  "webrtc-sctp",
  "webrtc-util",
@@ -2205,7 +2274,7 @@ dependencies = [
  "sha1",
  "sha2",
  "subtle",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
  "webrtc-util",
  "x25519-dalek",
@@ -2227,7 +2296,7 @@ dependencies = [
  "serde",
  "serde_json",
  "stun",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
  "turn",
  "url",
@@ -2245,7 +2314,7 @@ checksum = "979cc85259c53b7b620803509d10d35e2546fa505d228850cbe3f08765ea6ea8"
 dependencies = [
  "log",
  "socket2 0.5.10",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
  "webrtc-util",
 ]
@@ -2260,7 +2329,7 @@ dependencies = [
  "bytes",
  "rand",
  "rtp",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2276,7 +2345,7 @@ dependencies = [
  "log",
  "portable-atomic",
  "rand",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
  "webrtc-util",
 ]
@@ -2299,7 +2368,7 @@ dependencies = [
  "rtp",
  "sha1",
  "subtle",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
  "webrtc-util",
 ]
@@ -2320,7 +2389,7 @@ dependencies = [
  "nix",
  "portable-atomic",
  "rand",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
  "winapi",
 ]
@@ -2467,7 +2536,7 @@ dependencies = [
  "oid-registry",
  "ring",
  "rusticata-macros",
- "thiserror",
+ "thiserror 1.0.69",
  "time",
 ]
 
@@ -2598,6 +2667,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "zip"
+version = "2.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fabe6324e908f85a1c52063ce7aa26b68dcb7eb6dbc83a2d148403c9bc3eba50"
+dependencies = [
+ "arbitrary",
+ "crc32fast",
+ "crossbeam-utils",
+ "displaydoc",
+ "flate2",
+ "indexmap",
+ "memchr",
+ "thiserror 2.0.20",
+ "zopfli",
+]
+
+[[package]]
 name = "zlib-rs"
 version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2608,3 +2694,15 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
+
+[[package]]
+name = "zopfli"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f05cd8797d63865425ff89b5c4a48804f35ba0ce8d125800027ad6017d2b5249"
+dependencies = [
+ "bumpalo",
+ "crc32fast",
+ "log",
+ "simd-adler32",
+]

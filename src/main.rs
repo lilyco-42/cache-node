@@ -31,6 +31,7 @@ use std::{
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 mod mesh;
+mod mpkg_verify;
 
 #[derive(Clone)]
 struct Node {
@@ -253,6 +254,10 @@ fn count_existing(root: &str) -> (u64, u64) {
 #[tokio::main]
 async fn main() {
     let argv: Vec<String> = std::env::args().skip(1).collect();
+    if argv.first().map_or(false, |a| a == "verify") {
+        mpkg_verify::handle(&argv[1..]);
+        return;
+    }
     if argv.first().map_or(false, |a| a == "mesh") {
         let get = |k: &str| {
             argv.iter()
