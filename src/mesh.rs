@@ -87,11 +87,18 @@ impl BlobStore {
 
 fn sig_post(base: &str, path: &str, body: serde_json::Value) -> Result<(), String> {
     let url = format!("{}/{}", base.trim_end_matches('/'), path);
-    ureq::post(&url)
-        .timeout(Duration::from_secs(15))
-        .send_json(body)
-        .map_err(|e| format!("signal POST {path}: {e}"))?;
-    Ok(())
+    let mut err = String::new();
+    for attempt in 1..=10 {
+        match ureq::post(&url).timeout(Duration::from_secs(15)).send_json(body.clone()) {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                err = format!("signal POST {path} (try {attempt}): {e}");
+                eprintln!("mesh: {err}");
+                std::thread::sleep(Duration::from_secs(5));
+            }
+        }
+    }
+    Err(err)
 }
 
 fn sig_get(base: &str, path: &str) -> Result<Option<serde_json::Value>, String> {
@@ -128,7 +135,15 @@ async fn sig_wait_msg(
 // ── ICE / PeerConnection ────────────────────────────────────────────────────
 
 fn ice_servers() -> Vec<RTCIceServer> {
-    for cand in ["ice-servers.json", "/home/radxa/ice-servers.json"] {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join("ice-servers.json")));
+    let mut cands = vec!["ice-servers.json".to_string(), "/home/radxa/ice-servers.json".to_string()];
+    if let Some(e) = exe_dir {
+        cands.push(e.to_string_lossy().to_string());
+    }
+    for cand in &cands {
+        let cand = cand.as_str();
         if let Ok(s) = std::fs::read_to_string(cand) {
             if let Ok(v) = serde_json::from_str::<serde_json::Value>(&s) {
                 let mut out = Vec::new();
