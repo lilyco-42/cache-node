@@ -10,6 +10,7 @@
 //!   cache-node mesh --role answer --signal https://lain42.top/signal --session s1 --root blobs/
 
 use bytes::Bytes;
+use bytes::Bytes as BBytes;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
@@ -24,7 +25,6 @@ use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
-use bytes::Bytes as BBytes;
 use webrtc::peer_connection::RTCPeerConnection;
 
 const CHUNK: usize = 16 * 1024;
@@ -59,7 +59,10 @@ impl BlobStore {
                         }
                         if let Ok(md) = f.metadata() {
                             if md.is_file() {
-                                out.push((format!("{}{}", d.file_name().to_string_lossy(), name), md.len()));
+                                out.push((
+                                    format!("{}{}", d.file_name().to_string_lossy(), name),
+                                    md.len(),
+                                ));
                             }
                         }
                     }
@@ -89,7 +92,10 @@ fn sig_post(base: &str, path: &str, body: serde_json::Value) -> Result<(), Strin
     let url = format!("{}/{}", base.trim_end_matches('/'), path);
     let mut err = String::new();
     for attempt in 1..=10 {
-        match ureq::post(&url).timeout(Duration::from_secs(15)).send_json(body.clone()) {
+        match ureq::post(&url)
+            .timeout(Duration::from_secs(15))
+            .send_json(body.clone())
+        {
             Ok(_) => return Ok(()),
             Err(e) => {
                 err = format!("signal POST {path} (try {attempt}): {e}");
@@ -138,7 +144,10 @@ fn ice_servers() -> Vec<RTCIceServer> {
     let exe_dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.join("ice-servers.json")));
-    let mut cands = vec!["ice-servers.json".to_string(), "/home/radxa/ice-servers.json".to_string()];
+    let mut cands = vec![
+        "ice-servers.json".to_string(),
+        "/home/radxa/ice-servers.json".to_string(),
+    ];
     if let Some(e) = exe_dir {
         cands.push(e.to_string_lossy().to_string());
     }
@@ -180,7 +189,10 @@ async fn new_peer() -> Result<Arc<RTCPeerConnection>, String> {
         ice_servers: ice_servers(),
         ..Default::default()
     };
-    let pc = api.new_peer_connection(config).await.map_err(|e| e.to_string())?;
+    let pc = api
+        .new_peer_connection(config)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(Arc::new(pc))
 }
 
@@ -259,7 +271,10 @@ async fn pull_flow(
                     buf.clear();
                     break;
                 }
-                return Err(format!("control msg mid-transfer: {}", &t[..t.len().min(40)]));
+                return Err(format!(
+                    "control msg mid-transfer: {}",
+                    &t[..t.len().min(40)]
+                ));
             }
             let d = &m.data[..];
             if d.len() < 8 {
@@ -300,7 +315,10 @@ async fn serve_flow(
         .await
         .map_err(|_| "timeout waiting PULL")?
         .ok_or("channel closed")?;
-    eprintln!("mesh: [ANS] serve_flow first msg: {:?}", String::from_utf8_lossy(&first.1[..first.1.len().min(16)]));
+    eprintln!(
+        "mesh: [ANS] serve_flow first msg: {:?}",
+        String::from_utf8_lossy(&first.1[..first.1.len().min(16)])
+    );
     // 注意: 控制消息按内容判断 (offerer 用二进制 send 发送, is_string=false)
     let first_text = String::from_utf8_lossy(&first.1).to_string();
     if first_text == "PULL" {
@@ -311,8 +329,16 @@ async fn serve_flow(
                 .map(|(h, s)| json!({"hash": h, "size": s}))
                 .collect::<Vec<_>>()
         });
-        eprintln!("mesh: [ANS] about to send MANIFEST ({} bytes)", manifest.to_string().len());
-        match tokio::time::timeout(Duration::from_secs(5), dc.send(&BBytes::from(format!("MANIFEST {}", manifest)))).await {
+        eprintln!(
+            "mesh: [ANS] about to send MANIFEST ({} bytes)",
+            manifest.to_string().len()
+        );
+        match tokio::time::timeout(
+            Duration::from_secs(5),
+            dc.send(&BBytes::from(format!("MANIFEST {}", manifest))),
+        )
+        .await
+        {
             Ok(Ok(_)) => eprintln!("mesh: [ANS] MANIFEST sent OK"),
             Ok(Err(e)) => eprintln!("mesh: [ANS] MANIFEST send ERR: {e}"),
             Err(_) => eprintln!("mesh: [ANS] MANIFEST send TIMEOUT (hang confirmed)"),
@@ -338,7 +364,13 @@ async fn serve_flow(
                     continue;
                 }
                 let total = data.len() / CHUNK + 1;
-                eprintln!("mesh: [{:?}] serving {hash}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()%1000).unwrap_or(0));
+                eprintln!(
+                    "mesh: [{:?}] serving {hash}",
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs() % 1000)
+                        .unwrap_or(0)
+                );
                 for (seq, chunk) in data.chunks(CHUNK).enumerate() {
                     let mut frame = Vec::with_capacity(8 + chunk.len());
                     frame.extend_from_slice(&(seq as u32).to_be_bytes());
@@ -355,7 +387,9 @@ async fn serve_flow(
 }
 
 pub async fn run(args: MeshArgs) -> Result<(), String> {
-    let store = BlobStore { root: args.root.clone() };
+    let store = BlobStore {
+        root: args.root.clone(),
+    };
     std::fs::create_dir_all(&args.root).map_err(|e| e.to_string())?;
     let base = args.signal.trim_end_matches('/').to_string();
     let offer_path = format!("s/mesh-{}-offer", args.session);
@@ -363,7 +397,16 @@ pub async fn run(args: MeshArgs) -> Result<(), String> {
 
     let pc = new_peer().await?;
     pc.on_peer_connection_state_change(Box::new(|s: RTCPeerConnectionState| {
-        Box::pin(async move { eprintln!("mesh: [{:?}] pc state {}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()%1000).unwrap_or(0), s); })
+        Box::pin(async move {
+            eprintln!(
+                "mesh: [{:?}] pc state {}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() % 1000)
+                    .unwrap_or(0),
+                s
+            );
+        })
     }));
 
     match args.role.as_str() {
@@ -378,44 +421,82 @@ pub async fn run(args: MeshArgs) -> Result<(), String> {
             {
                 let mt = msg_tx.clone();
                 dc.on_message(Box::new(move |m: DataChannelMessage| {
-                    eprintln!("mesh: [OFF] on_message fired: {:?}", String::from_utf8_lossy(&m.data[..m.data.len().min(16)]));
+                    eprintln!(
+                        "mesh: [OFF] on_message fired: {:?}",
+                        String::from_utf8_lossy(&m.data[..m.data.len().min(16)])
+                    );
                     let _ = mt.send(m);
                     Box::pin(async {})
                 }));
             }
             let offer = pc.create_offer(None).await.map_err(|e| e.to_string())?;
-            pc.set_local_description(offer).await.map_err(|e| e.to_string())?;
+            pc.set_local_description(offer)
+                .await
+                .map_err(|e| e.to_string())?;
             let sdp = gathered_local_sdp(&pc).await?;
-            eprintln!("mesh: offer sdp len={} m=application={} candidates={}", sdp.len(), sdp.contains("m=application"), sdp.matches("a=candidate").count());
+            eprintln!(
+                "mesh: offer sdp len={} m=application={} candidates={}",
+                sdp.len(),
+                sdp.contains("m=application"),
+                sdp.matches("a=candidate").count()
+            );
             sig_post(&base, &offer_path, json!({ "type": "offer", "sdp": sdp }))?;
-            eprintln!("mesh: [{:?}] offer posted", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()%1000).unwrap_or(0));
-            let answer = sig_wait_msg(&base, &answer_path, Duration::from_secs(SIGNAL_TIMEOUT)).await?;
+            eprintln!(
+                "mesh: [{:?}] offer posted",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() % 1000)
+                    .unwrap_or(0)
+            );
+            let answer =
+                sig_wait_msg(&base, &answer_path, Duration::from_secs(SIGNAL_TIMEOUT)).await?;
             let msg = answer["msg"].as_str().ok_or("answer msg missing")?;
             let remote = parse_sdp(msg)?;
-            pc.set_remote_description(remote).await.map_err(|e| e.to_string())?;
+            pc.set_remote_description(remote)
+                .await
+                .map_err(|e| e.to_string())?;
             for _ in 0..120 {
                 let rs = dc.ready_state();
-                if matches!(rs, webrtc::data_channel::data_channel_state::RTCDataChannelState::Open) {
-                    eprintln!("mesh: [{:?}] dc OPEN", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()%1000).unwrap_or(0));
+                if matches!(
+                    rs,
+                    webrtc::data_channel::data_channel_state::RTCDataChannelState::Open
+                ) {
+                    eprintln!(
+                        "mesh: [{:?}] dc OPEN",
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs() % 1000)
+                            .unwrap_or(0)
+                    );
                     break;
                 }
                 tokio::time::sleep(Duration::from_millis(500)).await;
             }
-            dc.send(&BBytes::from("PULL")).await.map_err(|e| e.to_string())?;
-    eprintln!("mesh: PULL sent");
+            dc.send(&BBytes::from("PULL"))
+                .await
+                .map_err(|e| e.to_string())?;
+            eprintln!("mesh: PULL sent");
             pull_flow(dc, msg_rx, store).await?;
             let _ = pc.close().await;
             Ok(())
         }
         "answer" => {
             let (dc_tx, dc_rx) = tokio::sync::mpsc::unbounded_channel::<Arc<RTCDataChannel>>();
-            let (msg_tx, msg_rx) =
-                tokio::sync::mpsc::unbounded_channel::<(bool, Vec<u8>)>();
+            let (msg_tx, msg_rx) = tokio::sync::mpsc::unbounded_channel::<(bool, Vec<u8>)>();
             pc.on_data_channel(Box::new(move |dc: Arc<RTCDataChannel>| {
-                eprintln!("mesh: [{:?}] dc arrived", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()%1000).unwrap_or(0));
+                eprintln!(
+                    "mesh: [{:?}] dc arrived",
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs() % 1000)
+                        .unwrap_or(0)
+                );
                 let mt = msg_tx.clone();
                 dc.on_message(Box::new(move |m: DataChannelMessage| {
-                    eprintln!("mesh: [ANS] on_message fired: {:?}", String::from_utf8_lossy(&m.data[..m.data.len().min(16)]));
+                    eprintln!(
+                        "mesh: [ANS] on_message fired: {:?}",
+                        String::from_utf8_lossy(&m.data[..m.data.len().min(16)])
+                    );
                     let _ = mt.send((m.is_string, m.data.to_vec()));
                     Box::pin(async {})
                 }));
@@ -430,16 +511,32 @@ pub async fn run(args: MeshArgs) -> Result<(), String> {
                 Box::pin(async {})
             }));
             eprintln!("mesh: waiting offer…");
-            let offer = sig_wait_msg(&base, &offer_path, Duration::from_secs(SIGNAL_TIMEOUT)).await?;
+            let offer =
+                sig_wait_msg(&base, &offer_path, Duration::from_secs(SIGNAL_TIMEOUT)).await?;
             let msg = offer["msg"].as_str().ok_or("offer msg missing")?;
             let remote = parse_sdp(msg)?;
-            pc.set_remote_description(remote).await.map_err(|e| e.to_string())?;
+            pc.set_remote_description(remote)
+                .await
+                .map_err(|e| e.to_string())?;
             let answer = pc.create_answer(None).await.map_err(|e| e.to_string())?;
-            pc.set_local_description(answer).await.map_err(|e| e.to_string())?;
+            pc.set_local_description(answer)
+                .await
+                .map_err(|e| e.to_string())?;
             let sdp = gathered_local_sdp(&pc).await?;
-            eprintln!("mesh: answer sdp len={} m=application={} candidates={}", sdp.len(), sdp.contains("m=application"), sdp.matches("a=candidate").count());
+            eprintln!(
+                "mesh: answer sdp len={} m=application={} candidates={}",
+                sdp.len(),
+                sdp.contains("m=application"),
+                sdp.matches("a=candidate").count()
+            );
             sig_post(&base, &answer_path, json!({ "type": "answer", "sdp": sdp }))?;
-            eprintln!("mesh: [{:?}] answer posted", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()%1000).unwrap_or(0));
+            eprintln!(
+                "mesh: [{:?}] answer posted",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() % 1000)
+                    .unwrap_or(0)
+            );
             serve_flow(dc_rx, msg_rx, store).await?;
             let _ = pc.close().await;
             Ok(())

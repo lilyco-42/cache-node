@@ -39,10 +39,13 @@ fn read_zip(path: &Path) -> Result<(Value, Vec<ZipEntry>), String> {
         let mut e = zip.by_index(i).map_err(|e| format!("zip entry {i}: {e}"))?;
         let name = e.name().to_string();
         let mut data = Vec::with_capacity(e.size() as usize);
-        e.read_to_end(&mut data).map_err(|e| format!("read {name}: {e}"))?;
+        e.read_to_end(&mut data)
+            .map_err(|e| format!("read {name}: {e}"))?;
         if name == "mpkg.json" {
-            manifest = Some(serde_json::from_slice::<Value>(&data)
-                .map_err(|e| format!("manifest parse: {e}"))?);
+            manifest = Some(
+                serde_json::from_slice::<Value>(&data)
+                    .map_err(|e| format!("manifest parse: {e}"))?,
+            );
         }
         entries.push(ZipEntry { name, data });
     }
@@ -143,7 +146,10 @@ pub fn verify(path: &Path, out_att: Option<&Path>) -> Result<Value, String> {
     let id = package_id(&manifest, &files);
 
     // 工具需求检查
-    for t in manifest["requirements"]["tools"].as_array().unwrap_or(&vec![]) {
+    for t in manifest["requirements"]["tools"]
+        .as_array()
+        .unwrap_or(&vec![])
+    {
         let name = t["name"].as_str().unwrap_or("");
         if which(name).is_err() {
             return Err(format!("tool missing on PATH: {name}"));
@@ -151,10 +157,7 @@ pub fn verify(path: &Path, out_att: Option<&Path>) -> Result<Value, String> {
     }
 
     let shell = find_shell()?;
-    let base = std::env::temp_dir().join(format!(
-        "mpkg-rs-{}",
-        &id[7..19]
-    ));
+    let base = std::env::temp_dir().join(format!("mpkg-rs-{}", &id[7..19]));
     let _ = std::fs::remove_dir_all(&base);
     let pkg = base.join("pkg").to_string_lossy().replace('\\', "/");
     let work = base.join("work").to_string_lossy().replace('\\', "/");
@@ -170,7 +173,12 @@ pub fn verify(path: &Path, out_att: Option<&Path>) -> Result<Value, String> {
     let mut verify_log: Vec<Value> = Vec::new();
     let mut ok = true;
 
-    for (i, step) in manifest["steps"].as_array().unwrap_or(&vec![]).iter().enumerate() {
+    for (i, step) in manifest["steps"]
+        .as_array()
+        .unwrap_or(&vec![])
+        .iter()
+        .enumerate()
+    {
         let cmd = step["run"].as_str().unwrap_or("");
         let want = step["expect"]["exit"].as_i64().unwrap_or(0);
         let (code, so, se) = run_cmd(&shell, &subst(cmd, &pkg, &work), Path::new(&work))?;
@@ -178,7 +186,11 @@ pub fn verify(path: &Path, out_att: Option<&Path>) -> Result<Value, String> {
         steps_log.push(json!({"n": i + 1, "cmd": cmd, "exit": code, "ok": step_ok}));
         if !step_ok {
             ok = false;
-            eprintln!("mpkg-rs: step {} FAIL exit {code} != {want}\n  stderr: {}", i + 1, &se[..se.len().min(200)]);
+            eprintln!(
+                "mpkg-rs: step {} FAIL exit {code} != {want}\n  stderr: {}",
+                i + 1,
+                &se[..se.len().min(200)]
+            );
             break;
         }
     }
@@ -190,7 +202,10 @@ pub fn verify(path: &Path, out_att: Option<&Path>) -> Result<Value, String> {
             verify_log.push(json!({"cmd": cmd, "exit": code}));
             if code != 0 {
                 ok = false;
-                eprintln!("mpkg-rs: verify FAIL: {cmd}\n  stderr: {}", &se[..se.len().min(200)]);
+                eprintln!(
+                    "mpkg-rs: verify FAIL: {cmd}\n  stderr: {}",
+                    &se[..se.len().min(200)]
+                );
                 break;
             }
         }
@@ -212,14 +227,20 @@ pub fn verify(path: &Path, out_att: Option<&Path>) -> Result<Value, String> {
     });
     let _ = started;
     if let Some(out) = out_att {
-        std::fs::write(out, format!("{}", serde_json::to_string_pretty(&att).unwrap_or_default())).map_err(|e| e.to_string())?;
+        std::fs::write(
+            out,
+            format!("{}", serde_json::to_string_pretty(&att).unwrap_or_default()),
+        )
+        .map_err(|e| e.to_string())?;
     }
     let _ = std::fs::remove_dir_all(&base);
     Ok(att)
 }
 
 fn time_str() -> String {
-    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default();
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default();
     format!("{}s", now.as_secs())
 }
 

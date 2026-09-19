@@ -1,0 +1,42 @@
+name: CI
+
+# PR + push main 双触发。默认 feature (纯 KV 单文件) 与 mesh feature 双矩阵：
+# 本仓暂无测试用例, cargo test 先跑通空套件保住编译矩阵; 后续补测试自动纳入。
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci:
+    name: fmt + clippy + test (default)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: fmt
+        run: cargo fmt --all -- --check
+      - name: clippy (default = KV 单文件, 不拖 webrtc)
+        run: cargo clippy --workspace --all-targets
+      - name: test
+        run: cargo test
+
+  mesh:
+    name: clippy + build (features=mesh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: clippy (mesh)
+        run: cargo clippy --features mesh --all-targets
+      - name: build release (默认 feature, 验证 KV 单文件构建)
+        run: cargo build --release

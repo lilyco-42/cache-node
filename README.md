@@ -2,7 +2,12 @@
 
 内容寻址 (sha256) KV 缓存节点 + 节点间同步 + WebRTC 数据通道 P2P + mpkg Rust 验证器。
 
-一个静态单文件二进制（musl 构建 1-1.3MB），零运行时依赖，Linux/Windows/Android 全平台。
+默认构建 = 纯 KV 单文件二进制（musl 构建约 1MB 量级），零运行时依赖；
+`--features mesh` 追加 WebRTC P2P 网格能力（webrtc 0.13 仅在该 feature 下编译）。
+Linux/Windows/Android 全平台。
+
+> 本拆分属 lilyco 生态路线图 P2（结构重组）：把"KV 原子"与"P2P 网格"在构建层解耦，
+> 默认产物回归 README 宣称的单文件体积。
 
 ## 快速开始
 
@@ -25,7 +30,7 @@ CACHE_NODE_ADDR=0.0.0.0:9910 ./cache-node
 
 设计：git/attic 式两级 fanout、临时文件+rename 原子落盘、content-addressed 天然防篡改（改一字节 = 另一个 key）。
 
-## WebRTC mesh（P2P 同步）
+## WebRTC mesh（P2P 同步, 需 `--features mesh`）
 
 ```bash
 # 被拉方 (持有产物)
@@ -33,6 +38,8 @@ cache-node mesh --role answer --signal https://lain42.top/signal --session s1 --
 # 拉取方
 cache-node mesh --role offer  --signal https://lain42.top/signal --session s1 --root my-blobs/
 ```
+
+默认构建不含 mesh：运行 `cache-node mesh` 会提示用 `--features mesh` 重编。
 
 信令经 `/signal` 中继交换 SDP（非 trickle，候选内嵌），数据走 WebRTC 数据通道直连；
 ICE 配置读 `ice-servers.json`（exe 同目录优先）。传输协议：文本控制（PULL/MANIFEST/GET/DONE）
@@ -51,11 +58,20 @@ expect.exit 校验、120s 单步超时），产出 attestation。content-id 计�
 ## 构建
 
 ```bash
-cargo build --release                                    # 本机
+cargo build --release                                    # 默认: KV 单文件 (无 webrtc)
+cargo build --release --features mesh                    # 含 WebRTC P2P 网格
 cargo build --release --target aarch64-unknown-linux-musl  # 交叉 (需 zigbuild 或 musl 工具链)
 ```
 
-CI：推 tag `v*` 自动构建三平台并发布 Release（zigbuild + sccache）。
+构建矩阵：
+
+| 构建 | 依赖面 | 产物 |
+|---|---|---|
+| 默认 | axum + tokio(最小 features) + sha2/hex/serde_json + zip | KV HTTP 节点 + mpkg 验证器 |
+| `--features mesh` | 上述 + webrtc 0.13 + ureq + bytes + tokio(time,sync) | 追加 `cache-node mesh` 子命令 |
+
+CI：PR/push main 跑 fmt + clippy(默认与 mesh 两档) + test（`.github/workflows/ci.yml`）；
+推 tag `v*` 自动构建三平台并发布 Release（zigbuild + sccache）。
 验收：`bash smoke.sh`（BASE=http://host:9910）。
 
 ## 许可
