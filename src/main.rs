@@ -30,6 +30,8 @@ use std::{
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// mesh 模块仅在有 `mesh` feature 时编译（WebRTC 依赖不进默认 KV 单文件构建）。
+#[cfg(feature = "mesh")]
 mod mesh;
 mod mpkg_verify;
 
@@ -41,7 +43,9 @@ struct Node {
 }
 
 fn hex_ok(s: &str) -> bool {
-    s.len() == 64 && s.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F'))
+    s.len() == 64
+        && s.bytes()
+            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F'))
 }
 
 impl Node {
@@ -65,13 +69,12 @@ impl Node {
     }
 }
 
-async fn put_cache(
-    State(n): State<Node>,
-    Path(h): Path<String>,
-    body: Bytes,
-) -> impl IntoResponse {
+async fn put_cache(State(n): State<Node>, Path(h): Path<String>, body: Bytes) -> impl IntoResponse {
     if !hex_ok(&h) {
-        return (StatusCode::BAD_REQUEST, "hash: need 64 hex chars\n".to_string());
+        return (
+            StatusCode::BAD_REQUEST,
+            "hash: need 64 hex chars\n".to_string(),
+        );
     }
     let want = h.to_lowercase();
     let got = hex::encode(Sha256::digest(&body));
@@ -82,7 +85,10 @@ async fn put_cache(
         );
     }
     match n.store(&want, &body) {
-        Ok(true) => (StatusCode::CREATED, format!("stored {} bytes\n", body.len())),
+        Ok(true) => (
+            StatusCode::CREATED,
+            format!("stored {} bytes\n", body.len()),
+        ),
         Ok(false) => (StatusCode::OK, "dedup (already exists)\n".to_string()),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("io: {e}\n")),
     }
@@ -90,7 +96,10 @@ async fn put_cache(
 
 async fn get_cache(State(n): State<Node>, Path(h): Path<String>) -> impl IntoResponse {
     if !hex_ok(&h) {
-        return (StatusCode::BAD_REQUEST, Bytes::from_static(b"hash: need 64 hex chars\n"))
+        return (
+            StatusCode::BAD_REQUEST,
+            Bytes::from_static(b"hash: need 64 hex chars\n"),
+        )
             .into_response();
     }
     match fs::read(n.path(&h.to_lowercase())) {
@@ -140,7 +149,8 @@ async fn manifest(State(n): State<Node>) -> Json<serde_json::Value> {
 /// 零依赖 HTTP GET 客户端（仅对本节点/受信对端使用；MVP 不跟随重定向）
 fn http_get(hostport: &str, path: &str) -> Result<Vec<u8>, String> {
     let mut s = TcpStream::connect(hostport).map_err(|e| format!("connect {hostport}: {e}"))?;
-    s.set_read_timeout(Some(std::time::Duration::from_secs(60))).ok();
+    s.set_read_timeout(Some(std::time::Duration::from_secs(60)))
+        .ok();
     let req = format!("GET {path} HTTP/1.1\r\nHost: {hostport}\r\nConnection: close\r\n\r\n");
     s.write_all(req.as_bytes()).map_err(|e| e.to_string())?;
     let mut raw = Vec::new();
@@ -169,7 +179,9 @@ fn http_get(hostport: &str, path: &str) -> Result<Vec<u8>, String> {
 fn dechunk(mut body: &[u8]) -> Vec<u8> {
     let mut out = Vec::new();
     loop {
-        let Some(nl) = body.windows(2).position(|w| w == b"\r\n") else { break };
+        let Some(nl) = body.windows(2).position(|w| w == b"\r\n") else {
+            break;
+        };
         let len_str = std::str::from_utf8(&body[..nl]).unwrap_or("0");
         let Ok(len) = usize::from_str_radix(len_str.split(';').next().unwrap_or("0").trim(), 16)
         else {
@@ -185,7 +197,10 @@ fn dechunk(mut body: &[u8]) -> Vec<u8> {
 }
 
 /// POST /sync {"peer":"host:port"} —— 对账并拉取本节点缺失的 blob（落地前逐个 hash 校验）
-async fn sync(State(n): State<Node>, Json(req): Json<serde_json::Value>) -> Json<serde_json::Value> {
+async fn sync(
+    State(n): State<Node>,
+    Json(req): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
     let Some(peer) = req.get("peer").and_then(|v| v.as_str()) else {
         return Json(serde_json::json!({ "error": "body must be {\"peer\":\"host:port\"}" }));
     };
@@ -199,7 +214,9 @@ async fn sync(State(n): State<Node>, Json(req): Json<serde_json::Value>) -> Json
     let mut bytes = 0u64;
     let mut errors: Vec<String> = Vec::new();
     for b in manifest["blobs"].as_array().map_or([].as_slice(), |a| a) {
-        let Some(hash) = b["hash"].as_str() else { continue };
+        let Some(hash) = b["hash"].as_str() else {
+            continue;
+        };
         if !hex_ok(hash) {
             continue;
         }
@@ -237,9 +254,7 @@ fn count_existing(root: &str) -> (u64, u64) {
             if let Ok(l2) = fs::read_dir(d.path()) {
                 for f in l2.flatten() {
                     if let Ok(md) = f.metadata() {
-                        if md.is_file()
-                            && !f.path().extension().is_some_and(|e| e == "part")
-                        {
+                        if md.is_file() && !f.path().extension().is_some_and(|e| e == "part") {
                             blobs += 1;
                             bytes += md.len();
                         }
@@ -258,6 +273,7 @@ async fn main() {
         mpkg_verify::handle(&argv[1..]);
         return;
     }
+    #[cfg(feature = "mesh")]
     if argv.first().map_or(false, |a| a == "mesh") {
         let get = |k: &str| {
             argv.iter()
@@ -270,13 +286,23 @@ async fn main() {
             role: get("--role"),
             signal: get("--signal"),
             session: get("--session"),
-            root: PathBuf::from(if get("--root").is_empty() { "blobs".to_string() } else { get("--root") }),
+            root: PathBuf::from(if get("--root").is_empty() {
+                "blobs".to_string()
+            } else {
+                get("--root")
+            }),
         };
         if let Err(e) = mesh::run(args).await {
             eprintln!("mesh: {e}");
             std::process::exit(1);
         }
         return;
+    }
+    #[cfg(not(feature = "mesh"))]
+    if argv.first().map_or(false, |a| a == "mesh") {
+        eprintln!("cache-node: 本二进制未内置 mesh 模块 (WebRTC P2P 同步)");
+        eprintln!("请带 mesh feature 重新编译: cargo build --release --features mesh");
+        std::process::exit(2);
     }
     let root = std::env::var("CACHE_NODE_ROOT").unwrap_or_else(|_| "blobs".into());
     let addr = std::env::var("CACHE_NODE_ADDR").unwrap_or_else(|_| "0.0.0.0:9910".into());

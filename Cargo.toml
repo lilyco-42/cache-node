@@ -6,12 +6,24 @@ description = "zerostack 节点网格第一原子：内容寻址 (sha256) KV 缓
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+# KV HTTP 节点 (默认 feature) 的最小依赖面:
+# - axum/tokio: HTTP 服务 (tokio 只留 rt/macros/net, time+sync 归 mesh)
+# - sha2/hex/serde_json: 内容寻址与 API
+# - zip: mpkg 验证器
 axum = "0.8"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
 sha2 = "0.10"
 hex = "0.4"
 serde_json = "1"
-webrtc = "0.13"
-ureq = { version = "2", features = ["json"] }
-bytes = "1"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+
+# mesh 专属 (默认不编译): WebRTC 数据通道 P2P + 信令 HTTP 客户端 + 分块缓冲
+webrtc = { version = "0.13", optional = true }
+ureq = { version = "2", features = ["json"], optional = true }
+bytes = { version = "1", optional = true }
+
+[features]
+default = []
+# --features mesh: 启用 `cache-node mesh` 子命令 (WebRTC 数据通道同步)。
+# tokio 追加 time (sleep/timeout) 与 sync (mpsc) —— 仅 mesh.rs 使用。
+mesh = ["dep:webrtc", "dep:ureq", "dep:bytes", "tokio/time", "tokio/sync"]
